@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>USGS Earthquake Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 600px;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="legend" class="legend"></div>
+
+    <script>
+        var map = L.map('map').setView([0, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Fetch earthquake data from the USGS GeoJSON feed
+        fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson')
+            .then(response => response.json())
+            .then(data => {
+                // Initialize the legend
+                var legend = L.control({ position: 'bottomleft' });
+                legend.onAdd = function (map) {
+                    var div = L.DomUtil.create('div', 'info legend');
+                    div.innerHTML = '<h4>Depth Legend</h4>' +
+                        '<i style="background: hsl(0, 100%, 0%)"></i> 0 km - Shallow<br>' +
+                        '<i style="background: hsl(0, 100%, 50%)"></i> 50 km<br>' +
+                        '<i style="background: hsl(0, 100%, 100%)"></i> 100 km - Deep';
+                    return div;
+                };
+                legend.addTo(map);
+
+                // Loop through the earthquake data and add markers to the map
+                data.features.forEach(feature => {
+                    var magnitude = feature.properties.mag;
+                    var depth = feature.geometry.coordinates[2];
+                    var latitude = feature.geometry.coordinates[1];
+                    var longitude = feature.geometry.coordinates[0];
+
+                    var markerSize = magnitude * 5; // Adjust the scale factor as needed
+                    var markerColor = 'hsl(0, 100%, ' + (100 - (depth / 100)) + '%)';
+
+                    var marker = L.circleMarker([latitude, longitude], {
+                        radius: markerSize,
+                        fillColor: markerColor,
+                        color: '#000',
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map);
+
+                    // Create a popup for each earthquake marker
+                    var popupContent = '<strong>Magnitude:</strong> ' + magnitude + '<br><strong>Depth:</strong> ' + depth + ' km';
+                    marker.bindPopup(popupContent);
+                });
+            })
+            .catch(error => console.error(error));
+    </script>
+</body>
+</html>
